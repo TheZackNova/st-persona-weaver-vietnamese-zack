@@ -182,8 +182,17 @@
     cursor: pointer; font-weight: bold; width: auto; transition: all 0.2s; font-size: 0.95em;
     white-space: nowrap;
 }
-.pw-btn:hover { background: rgba(128,128,128,0.25); filter: brightness(1.1); }
-.pw-btn.gen { background: var(--pw-text-main); color: var(--smart-theme-bg, #000); border: none; width: 100%; margin-top: 5px; }
+.pw-btn.gen {
+    background: #4a9e3f;
+    color: #fff;
+    border: 2px solid #83c168;
+    width: 100%;
+    margin-top: 5px;
+}
+.pw-btn.gen:hover {
+    background: #5cb85c;
+    filter: brightness(1.1);
+}
 .pw-btn.save { border-color: var(--pw-text-main); color: var(--pw-text-main); }
 .pw-btn.danger { border-color: var(--pw-danger); color: var(--pw-danger); background: transparent; }
 .pw-btn.danger:hover { background: rgba(255, 107, 107, 0.1); }
