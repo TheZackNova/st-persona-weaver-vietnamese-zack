@@ -160,6 +160,25 @@
 }
 .pw-load-btn:hover { opacity: 1; background: rgba(128,128,128,0.2); }
 
+/* NPC Named Template Dropdown */
+.pw-npc-template-dropdown {
+    background-color: var(--pw-paper-bg);
+    border: 1px solid var(--pw-border);
+    color: var(--pw-text-main);
+    border-radius: 6px;
+    padding: 4px 6px;
+    font-family: inherit;
+    font-size: 0.82em;
+    outline: none;
+    box-sizing: border-box;
+    cursor: pointer;
+    max-width: 130px;
+    flex-shrink: 0;
+    transition: border-color 0.2s;
+}
+.pw-npc-template-dropdown:hover,
+.pw-npc-template-dropdown:focus { border-color: var(--pw-text-main); }
+
 /* Inputs */
 .pw-input, .pw-textarea, .pw-select {
     background-color: var(--pw-paper-bg); border: 1px solid var(--pw-border);

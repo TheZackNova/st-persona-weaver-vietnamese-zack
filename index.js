@@ -16,6 +16,7 @@ const STORAGE_KEY_UI_STATE = 'pw_ui_state_v4_preset';
 const STORAGE_KEY_THEMES = 'pw_custom_themes_v1'; 
 const STORAGE_KEY_DATA_USER = 'pw_data_user_v1'; 
 const STORAGE_KEY_DATA_NPC = 'pw_data_npc_v1';   
+const STORAGE_KEY_NPC_NAMED_TEMPLATES = 'pw_npc_named_templates_v1';
 
 const BUTTON_ID = 'pw_persona_tool_btn';
 const HISTORY_PER_PAGE = 20;
@@ -277,6 +278,7 @@ let historyPage = 1;
 
 let userContext = { template: defaultYamlTemplate, request: "", result: "", hasResult: false };
 let npcContext = { template: defaultNpcTemplate, request: "", result: "", hasResult: false };
+let npcNamedTemplates = []; // [{id, name, content}]
 
 const getCurrentTemplate = () => {
     return uiStateCache.generationMode === 'npc' ? npcContext.template : userContext.template;
@@ -890,6 +892,8 @@ function loadData() {
         const n = JSON.parse(localStorage.getItem(STORAGE_KEY_DATA_NPC));
         npcContext = n || { template: defaultNpcTemplate, request: "", result: "", hasResult: false };
     } catch { npcContext = { template: defaultNpcTemplate, request: "", result: "", hasResult: false }; }
+
+    try { npcNamedTemplates = JSON.parse(localStorage.getItem(STORAGE_KEY_NPC_NAMED_TEMPLATES)) || []; } catch { npcNamedTemplates = []; }
 }
 
 function saveData() {
@@ -899,6 +903,7 @@ function saveData() {
     safeLocalStorageSet(STORAGE_KEY_THEMES, JSON.stringify(customThemes));
     safeLocalStorageSet(STORAGE_KEY_DATA_USER, JSON.stringify(userContext));
     safeLocalStorageSet(STORAGE_KEY_DATA_NPC, JSON.stringify(npcContext));
+    safeLocalStorageSet(STORAGE_KEY_NPC_NAMED_TEMPLATES, JSON.stringify(npcNamedTemplates));
 }
 
 function saveHistory(item) {
@@ -1196,6 +1201,16 @@ async function openCreatorPopup() {
     // [Fix 14] Initial Hint Text
     const initialHint = getPresetHintText(uiStateCache.generationPreset);
 
+    // NPC Named Templates Dropdown Options
+    const activeNpcTmplId = uiStateCache.activeNpcTemplateId || '__default__';
+    const currentInitMode = isNpc ? 'npc' : 'user';
+    let npcTemplateOptionsHtml = `<option value="__default__" ${activeNpcTmplId === '__default__' ? 'selected' : ''}>Mặc định</option>`;
+    npcNamedTemplates.filter(t => t.mode === currentInitMode).forEach(tmpl => {
+        const sel = activeNpcTmplId === tmpl.id ? 'selected' : '';
+        const safeName = tmpl.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        npcTemplateOptionsHtml += `<option value="${tmpl.id}" ${sel}>${safeName}</option>`;
+    });
+
     const html = `
 <div class="pw-wrapper">
     <div class="pw-header">
@@ -1220,6 +1235,7 @@ async function openCreatorPopup() {
                         <i class="fa-solid fa-user-secret"></i> NPC
                     </div>
                 </div>
+                <select id="pw-npc-template-select" class="pw-npc-template-dropdown" title="Chọn mẫu hồ sơ NPC" style="display:${isNpc ? 'inline-block' : 'none'};">${npcTemplateOptionsHtml}</select>
                 <div class="pw-load-btn" id="pw-btn-load-current" style="${isNpc ? 'visibility:hidden;' : ''}">Tải hồ sơ hiện tại</div>
             </div>
 
@@ -1249,7 +1265,10 @@ async function openCreatorPopup() {
                     <textarea id="pw-template-text" class="pw-template-textarea">${activeData.template}</textarea>
                     <div class="pw-template-footer">
                         <button class="pw-mini-btn" id="pw-gen-template-smart" title="Dựa trên World Info và thiết lập để tạo mẫu tùy chỉnh">Tạo mẫu AI</button>
-                        <button class="pw-mini-btn" id="pw-save-template">Lưu mẫu</button>
+                        <div style="display:flex; gap:6px;">
+                            <button class="pw-mini-btn" id="pw-save-template">Lưu mẫu</button>
+                            <button class="pw-mini-btn" id="pw-save-template-as" title="Lưu mẫu hiện tại với một tên tuỳ chọn">Lưu mẫu với tên...</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1523,6 +1542,7 @@ async function openCreatorPopup() {
 
     $('#pw-prompt-editor').val(promptsCache.personaGen);
     renderTemplateChips();
+    renderNpcTemplateDropdown();
     loadAvailableWorldBooks().then(() => {
         renderWiBooks();
         const options = availableWorldBooks.length > 0 ? availableWorldBooks.map(b => `<option value="${b}">${b}</option>`).join('') : `<option disabled>Không tìm thấy World Info</option>`;
@@ -1609,19 +1629,22 @@ function bindEvents() {
         }
 
         renderTemplateChips(); // Render lại các thẻ tag cho mẫu mới
+        renderNpcTemplateDropdown();
 
         // 4. Cập nhật nút bấm UI
         if (mode === 'npc') {
             $('#pw-btn-gen').text("Tạo thiết lập NPC");
             $('#pw-btn-apply').hide();
             $('#pw-btn-load-current').css('visibility', 'hidden'); 
-            $('#pw-load-main-template').show(); 
+            $('#pw-load-main-template').show();
+            $('#pw-npc-template-select').show();
             toastr.info("Đã chuyển sang chế độ NPC");
         } else {
             $('#pw-btn-gen').text("Tạo thiết lập User");
             $('#pw-btn-apply').show();
             $('#pw-btn-load-current').css('visibility', 'visible');
             $('#pw-load-main-template').hide();
+            $('#pw-npc-template-select').hide();
             toastr.info("Đã chuyển sang chế độ User");
         }
     });
@@ -1946,6 +1969,10 @@ function bindEvents() {
         
         if (uiStateCache.generationMode === 'npc') npcContext.template = val;
         else userContext.template = val;
+
+        // If a named template is active for this mode, sync its content too
+        syncActiveNamedTemplate(val);
+
         saveData();
         
         saveHistory({ 
@@ -1965,6 +1992,51 @@ function bindEvents() {
         $('#pw-toggle-edit-template').text("Sửa mẫu").removeClass('editing');
         $('#pw-template-block-header').find('i').show();
         toastr.success("Mẫu đã được cập nhật và lưu vào lịch sử");
+    });
+
+    $(document).on('click.pw', '#pw-save-template-as', () => {
+        const val = $('#pw-template-text').val();
+        if (!val.trim()) { toastr.warning("Không có nội dung để lưu!"); return; }
+        const name = prompt("Nhập tên cho mẫu:", "");
+        if (name === null) return;
+        const trimmedName = name.trim();
+        if (!trimmedName) { toastr.warning("Tên mẫu không được để trống!"); return; }
+        const mode = uiStateCache.generationMode;
+        const existingIdx = npcNamedTemplates.findIndex(t => t.name === trimmedName && t.mode === mode);
+        if (existingIdx >= 0) {
+            npcNamedTemplates[existingIdx].content = val;
+            uiStateCache.activeNpcTemplateId = npcNamedTemplates[existingIdx].id;
+            toastr.success(`Đã cập nhật mẫu "${trimmedName}"`);
+        } else {
+            const id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            npcNamedTemplates.push({ id, name: trimmedName, mode, content: val });
+            uiStateCache.activeNpcTemplateId = id;
+            toastr.success(`Đã lưu mẫu "${trimmedName}"`);
+        }
+        saveData();
+        renderNpcTemplateDropdown();
+    });
+
+    $(document).on('change.pw', '#pw-npc-template-select', function() {
+        const id = $(this).val();
+        uiStateCache.activeNpcTemplateId = id;
+        let content;
+        let label;
+        if (id === '__default__') {
+            content = uiStateCache.generationMode === 'npc' ? defaultNpcTemplate : defaultYamlTemplate;
+            label = 'Mặc định';
+        } else {
+            const tmpl = npcNamedTemplates.find(t => t.id === id);
+            if (!tmpl) return;
+            content = tmpl.content;
+            label = tmpl.name;
+        }
+        $('#pw-template-text').val(content);
+        if (uiStateCache.generationMode === 'npc') npcContext.template = content;
+        else userContext.template = content;
+        saveData();
+        renderTemplateChips();
+        toastr.info(`Đã tải mẫu: ${label}`);
     });
 
     $(document).on('click.pw', '.pw-shortcut-btn', function () {
@@ -2522,6 +2594,27 @@ const renderTemplateChips = () => {
         });
         $container.append($chip);
     });
+};
+
+const renderNpcTemplateDropdown = () => {
+    const $select = $('#pw-npc-template-select');
+    if (!$select.length) return;
+    const mode = uiStateCache.generationMode;
+    const activeId = uiStateCache.activeNpcTemplateId || '__default__';
+    let html = `<option value="__default__" ${activeId === '__default__' ? 'selected' : ''}>Mặc định</option>`;
+    npcNamedTemplates.filter(t => t.mode === mode).forEach(tmpl => {
+        const sel = activeId === tmpl.id ? 'selected' : '';
+        const safeName = tmpl.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        html += `<option value="${tmpl.id}" ${sel}>${safeName}</option>`;
+    });
+    $select.html(html);
+};
+
+const syncActiveNamedTemplate = (content) => {
+    const activeId = uiStateCache.activeNpcTemplateId;
+    if (!activeId || activeId === '__default__') return;
+    const idx = npcNamedTemplates.findIndex(t => t.id === activeId);
+    if (idx >= 0) npcNamedTemplates[idx].content = content;
 };
 
 // [Fix 7] Cập nhật logic lọc lịch sử
