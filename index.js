@@ -306,7 +306,7 @@ ${content}
 }
 
 function stripWikitext(text) {
-    return text
+    const stripped = (text || "")
         .replace(/\{\{[^{}]*\}\}/g, '') // Remove templates {{...}}
         .replace(/\[\[(?:File|Image|Tập tin|Media):[^\]]*\]\]/gi, '') // Remove file links
         .replace(/\[\[(?:Category|Thể loại):[^\]]*\]\]/gi, '') // Remove category links
@@ -314,12 +314,13 @@ function stripWikitext(text) {
         .replace(/={2,6}([^=]+)={2,6}/g, '\n### $1\n') // Headers
         .replace(/<ref[^>]*>[\s\S]*?<\/ref>/gi, '') // Remove <ref>
         .replace(/<ref[^>]*\/>/gi, '') // Remove self-closing <ref>
-        .replace(/<[^>]+>/g, '') // Remove HTML tags
-        .replace(/<[^>\n]*/g, '') // Remove dangling/incomplete tags
-        .replace(/[<>]/g, '') // Remove any remaining angle brackets
         .replace(/'{2,3}/g, '') // Remove bold/italic '''/''
         .replace(/^\s*[*#:;]+\s*/gm, '') // Remove list markers
-        .replace(/\[https?:\/\/[^\s\]]*\s*([^\]]*)\]/g, '$1') // External links
+        .replace(/\[https?:\/\/[^\s\]]*\s*([^\]]*)\]/g, '$1'); // External links
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(stripped, 'text/html');
+    return (doc.body?.textContent || "")
         .replace(/\n{3,}/g, '\n\n') // Collapse multiple newlines
         .trim();
 }
