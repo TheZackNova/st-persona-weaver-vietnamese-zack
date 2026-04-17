@@ -2614,13 +2614,14 @@ function bindEvents() {
 
     // --- Fandom Wiki Detection ---
     const FANDOM_URL_REGEX = /https?:\/\/[a-z0-9\-]+\.fandom\.com\/(?:[a-z\-]+\/)?wiki\/[^\s]+/i;
+    const TRAILING_PUNCT_REGEX = /[.,;:!?'")\]}>]+$/;
 
     $(document).on('paste.pw', '#pw-request', function(e) {
         const pastedText = (e.originalEvent.clipboardData || window.clipboardData).getData('text');
         if (!pastedText) return;
         const match = pastedText.match(FANDOM_URL_REGEX);
         if (match) {
-            const detectedUrl = match[0].replace(/[.,;:!?'")\]}>]+$/, '');
+            const detectedUrl = match[0].replace(TRAILING_PUNCT_REGEX, '');
             setTimeout(() => showWikiFetchBar(detectedUrl), 50);
         }
     });
@@ -2629,7 +2630,7 @@ function bindEvents() {
         const text = $(this).val();
         const match = text.match(FANDOM_URL_REGEX);
         if (match) {
-            const detectedUrl = match[0].replace(/[.,;:!?'")\]}>]+$/, '');
+            const detectedUrl = match[0].replace(TRAILING_PUNCT_REGEX, '');
             showWikiFetchBar(detectedUrl);
         } else {
             $('#pw-wiki-fetch-bar').hide();
