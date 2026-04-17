@@ -2620,7 +2620,7 @@ function bindEvents() {
         if (!pastedText) return;
         const match = pastedText.match(FANDOM_URL_REGEX);
         if (match) {
-            const detectedUrl = match[0];
+            const detectedUrl = match[0].replace(/[.,;:!?'")\]}>]+$/, '');
             setTimeout(() => showWikiFetchBar(detectedUrl), 50);
         }
     });
@@ -2629,7 +2629,8 @@ function bindEvents() {
         const text = $(this).val();
         const match = text.match(FANDOM_URL_REGEX);
         if (match) {
-            showWikiFetchBar(match[0]);
+            const detectedUrl = match[0].replace(/[.,;:!?'")\]}>]+$/, '');
+            showWikiFetchBar(detectedUrl);
         } else {
             $('#pw-wiki-fetch-bar').hide();
         }
@@ -2713,8 +2714,23 @@ function renderThemeOptions() {
 }
 
 function showWikiFetchBar(url) {
+    const $bar = $('#pw-wiki-fetch-bar');
+    const $btn = $('#pw-wiki-fetch-btn');
+    const currentUrl = $('#pw-wiki-url-label').data('url');
+    const barIsVisible = $bar.is(':visible');
+
+    if (url !== currentUrl) {
+        // Different URL detected — clear old cache and status
+        wikiDataCache = null;
+        $('#pw-wiki-status').hide();
+        $btn.prop('disabled', false).html('<i class="fa-solid fa-download"></i> Tải nội dung Wiki');
+    } else if (!barIsVisible) {
+        // Same URL but bar was hidden (e.g. after dismiss or generation) — reset button to allow re-fetch
+        $btn.prop('disabled', false).html('<i class="fa-solid fa-download"></i> Tải nội dung Wiki');
+    }
+
     $('#pw-wiki-url-label').text(url).data('url', url);
-    $('#pw-wiki-fetch-bar').css('display', 'flex');
+    $bar.css('display', 'flex');
 }
 
 const renderTemplateChips = () => {
