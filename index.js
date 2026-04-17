@@ -315,6 +315,7 @@ function stripWikitext(text) {
         .replace(/<ref[^>]*>[\s\S]*?<\/ref>/gi, '') // Remove <ref>
         .replace(/<ref[^>]*\/>/gi, '') // Remove self-closing <ref>
         .replace(/<[^>]+>/g, '') // Remove HTML tags
+        .replace(/<[^>\n]*/g, '') // Remove dangling/incomplete tags
         .replace(/'{2,3}/g, '') // Remove bold/italic '''/''
         .replace(/^\s*[*#:;]+\s*/gm, '') // Remove list markers
         .replace(/\[https?:\/\/[^\s\]]*\s*([^\]]*)\]/g, '$1') // External links
